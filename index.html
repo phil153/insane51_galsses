@@ -2,59 +2,65 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Camera Test | v0.8 PWA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Camera Test | v0.9</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     
     <style>
-        * { box-sizing: border-box; }
-        body {
+        * { 
+            box-sizing: border-box; 
             margin: 0;
             padding: 0;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
             background-color: #000;
             color: #fff;
             font-family: sans-serif;
             overflow: hidden;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* 核心包覆層：處理螢幕旋轉 */
-        #app-wrapper {
-            display: flex;
-            width: 100%;
-            height: 100%;
             position: relative;
         }
 
-        /* 當螢幕是直向 (Portrait) 時，利用 CSS 強制將畫面旋轉 90 度模擬橫向 */
+        /* 核心包覆層：預設填滿螢幕 */
+        #app-wrapper {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.2s ease;
+        }
+
+        /* 【關鍵修正】當手機是直向時，強制將容器旋轉 90 度，並重新修正寬高與定位 */
         @media screen and (orientation: portrait) {
             #app-wrapper {
                 width: 100vh;
                 height: 100vw;
                 transform: rotate(90deg);
-                transform-origin: center;
-                position: absolute;
+                transform-origin: top left;
+                top: 0;
+                left: 100vw; /* 將旋轉後的起點拉回螢幕內 */
             }
         }
 
-        /* 相機畫面填滿左側/主要區域 */
+        /* 相機畫面區域 */
         .camera-container {
             flex: 1;
             position: relative;
             background-color: #111;
+            height: 100%;
         }
 
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover; /* 確保相機畫面填滿不留白 */
         }
 
+        /* 濾鏡遮罩層 */
         .filter-overlay {
             position: absolute;
             top: 0;
@@ -69,9 +75,9 @@
         .filter-red { background-color: #ff0000; }
         .filter-cyan { background-color: #00ffff; }
 
-        /* 控制面板固定在右側（適合橫向操作） */
+        /* 右側控制面板 */
         .sidebar {
-            width: 120px;
+            width: 100px;
             background-color: #1a1a1a;
             display: flex;
             flex-direction: column;
@@ -79,11 +85,12 @@
             align-items: center;
             gap: 15px;
             padding: 10px;
+            height: 100%;
             z-index: 10;
         }
 
         button {
-            width: 80px;
+            width: 75px;
             height: 50px;
             font-size: 14px;
             cursor: pointer;
@@ -91,7 +98,8 @@
             background-color: #333;
             color: #fff;
             border-radius: 8px;
-            transition: background 0.2s;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         button.active {
@@ -130,7 +138,6 @@
         };
         const btnFullscreen = document.getElementById('btn-fullscreen');
 
-        // 初始化相機
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -147,7 +154,6 @@
             }
         }
 
-        // 濾鏡切換
         function setFilter(type) {
             Object.values(buttons).forEach(btn => btn.classList.remove('active'));
             overlay.className = 'filter-overlay';
@@ -166,36 +172,31 @@
         buttons.red.addEventListener('click', () => setFilter('red'));
         buttons.cyan.addEventListener('click', () => setFilter('cyan'));
 
-        // 橫向鎖定與全螢幕控制
         async function toggleFullscreen() {
             try {
                 if (!document.fullscreenElement) {
-                    // 進入全螢幕
                     await document.documentElement.requestFullscreen();
-                    // 嘗試鎖定螢幕方向為橫向 (部分行動瀏覽器支援)
                     if (screen.orientation && screen.orientation.lock) {
                         await screen.orientation.lock('landscape');
                     }
                 } else {
-                    // 退出全螢幕
                     if (screen.orientation && screen.orientation.unlock) {
                         screen.orientation.unlock();
                     }
                     await document.exitFullscreen();
                 }
             } catch (err) {
-                console.warn("全螢幕或方向鎖定暫不支援此裝置/瀏覽器:", err);
+                console.warn("全螢幕或方向鎖定暫不支援此裝置:", err);
             }
         }
 
         btnFullscreen.addEventListener('click', toggleFullscreen);
 
-        // 註冊 PWA Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker 註冊成功', reg.scope))
-                    .catch(err => console.log('Service Worker 註冊失敗', err));
+                    .then(reg => console.log('SW registered', reg))
+                    .catch(err => console.log('SW registration failed', err));
             });
         }
 
